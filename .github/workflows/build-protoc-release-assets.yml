@@ -1,0 +1,119 @@
+name: Build protoc release assets
+
+on:
+  release:
+    types:
+      - created
+      - edited
+
+permissions:
+  contents: write
+
+concurrency:
+  group: protoc-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build-linux-amd64:
+    if: ${{ github.event.release.draft == true }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build g++ zlib1g-dev
+
+      - name: Configure
+        run: >
+          cmake -S cmake -B build -G Ninja
+          -Dprotobuf_BUILD_TESTS=OFF
+          -Dprotobuf_BUILD_CONFORMANCE=OFF
+          -Dprotobuf_BUILD_EXAMPLES=OFF
+
+      - name: Build protoc
+        run: cmake --build build --target protoc --parallel
+
+      - name: Verify protoc
+        run: ./build/protoc --version
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp build/protoc dist/protoc
+          tar -C dist -czf "protoc-${{ github.event.release.tag_name }}-linux-amd64.tar.gz" protoc
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: protoc-linux-amd64
+          path: protoc-${{ github.event.release.tag_name }}-linux-amd64.tar.gz
+          if-no-files-found: error
+
+  build-darwin-arm64:
+    if: ${{ github.event.release.draft == true }}
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          if ! command -v cmake >/dev/null 2>&1; then
+            brew install cmake
+          fi
+          if ! command -v ninja >/dev/null 2>&1; then
+            brew install ninja
+          fi
+
+      - name: Configure
+        run: >
+          cmake -S cmake -B build -G Ninja
+          -DCMAKE_OSX_ARCHITECTURES=arm64
+          -Dprotobuf_BUILD_TESTS=OFF
+          -Dprotobuf_BUILD_CONFORMANCE=OFF
+          -Dprotobuf_BUILD_EXAMPLES=OFF
+
+      - name: Build protoc
+        run: cmake --build build --target protoc --parallel
+
+      - name: Verify protoc
+        run: ./build/protoc --version
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp build/protoc dist/protoc
+          tar -C dist -czf "protoc-${{ github.event.release.tag_name }}-darwin-arm64.tar.gz" protoc
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: protoc-darwin-arm64
+          path: protoc-${{ github.event.release.tag_name }}-darwin-arm64.tar.gz
+          if-no-files-found: error
+
+  upload-assets:
+    if: ${{ github.event.release.draft == true }}
+    runs-on: ubuntu-22.04
+    needs:
+      - build-linux-amd64
+      - build-darwin-arm64
+    steps:
+      - name: Download workflow artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p out
+          cp release-assets/protoc-linux-amd64/*.tar.gz out/
+          cp release-assets/protoc-darwin-arm64/*.tar.gz out/
+          (cd out && shasum -a 256 *.tar.gz > SHA256SUMS)
+
+      - name: Upload assets to draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.event.release.tag_name }}" out/*.tar.gz out/SHA256SUMS --clobber
