@@ -41,21 +41,21 @@ jobs:
 
       - name: Configure
         run: >
-          cmake -S cmake -B build -G Ninja
+          cmake -S cmake -B out/build -G Ninja
           -Dprotobuf_BUILD_TESTS=OFF
           -Dprotobuf_BUILD_CONFORMANCE=OFF
           -Dprotobuf_BUILD_EXAMPLES=OFF
 
       - name: Build protoc
-        run: cmake --build build --target protoc --parallel
+        run: cmake --build out/build --target protoc --parallel
 
       - name: Verify protoc
-        run: ./build/protoc --version
+        run: ./out/build/protoc --version
 
       - name: Package
         run: |
           mkdir -p dist
-          cp build/protoc dist/protoc
+          cp out/build/protoc dist/protoc
           tar -C dist -czf "protoc-${RELEASE_TAG}-linux-amd64.tar.gz" protoc
 
       - name: Upload workflow artifact
@@ -88,22 +88,22 @@ jobs:
 
       - name: Configure
         run: >
-          cmake -S cmake -B build -G Ninja
+          cmake -S cmake -B out/build -G Ninja
           -DCMAKE_OSX_ARCHITECTURES=arm64
           -Dprotobuf_BUILD_TESTS=OFF
           -Dprotobuf_BUILD_CONFORMANCE=OFF
           -Dprotobuf_BUILD_EXAMPLES=OFF
 
       - name: Build protoc
-        run: cmake --build build --target protoc --parallel
+        run: cmake --build out/build --target protoc --parallel
 
       - name: Verify protoc
-        run: ./build/protoc --version
+        run: ./out/build/protoc --version
 
       - name: Package
         run: |
           mkdir -p dist
-          cp build/protoc dist/protoc
+          cp out/build/protoc dist/protoc
           tar -C dist -czf "protoc-${RELEASE_TAG}-darwin-arm64.tar.gz" protoc
 
       - name: Upload workflow artifact
