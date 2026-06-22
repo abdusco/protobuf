@@ -5,6 +5,12 @@ on:
     types:
       - created
       - edited
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing draft release tag to upload assets to
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -15,8 +21,10 @@ concurrency:
 
 jobs:
   build-linux-amd64:
-    if: ${{ github.event.release.draft == true }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.release.draft == true }}
     runs-on: ubuntu-22.04
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,18 +49,20 @@ jobs:
         run: |
           mkdir -p dist
           cp build/protoc dist/protoc
-          tar -C dist -czf "protoc-${{ github.event.release.tag_name }}-linux-amd64.tar.gz" protoc
+          tar -C dist -czf "protoc-${RELEASE_TAG}-linux-amd64.tar.gz" protoc
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: protoc-linux-amd64
-          path: protoc-${{ github.event.release.tag_name }}-linux-amd64.tar.gz
+          path: protoc-${{ env.RELEASE_TAG }}-linux-amd64.tar.gz
           if-no-files-found: error
 
   build-darwin-arm64:
-    if: ${{ github.event.release.draft == true }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.release.draft == true }}
     runs-on: macos-14
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -84,18 +94,20 @@ jobs:
         run: |
           mkdir -p dist
           cp build/protoc dist/protoc
-          tar -C dist -czf "protoc-${{ github.event.release.tag_name }}-darwin-arm64.tar.gz" protoc
+          tar -C dist -czf "protoc-${RELEASE_TAG}-darwin-arm64.tar.gz" protoc
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: protoc-darwin-arm64
-          path: protoc-${{ github.event.release.tag_name }}-darwin-arm64.tar.gz
+          path: protoc-${{ env.RELEASE_TAG }}-darwin-arm64.tar.gz
           if-no-files-found: error
 
   upload-assets:
-    if: ${{ github.event.release.draft == true }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.release.draft == true }}
     runs-on: ubuntu-22.04
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.release_tag }}
     needs:
       - build-linux-amd64
       - build-darwin-arm64
@@ -116,4 +128,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" out/*.tar.gz out/SHA256SUMS --clobber
+          gh release upload "${RELEASE_TAG}" out/*.tar.gz out/SHA256SUMS --clobber
