@@ -42,6 +42,7 @@ jobs:
       - name: Configure
         run: >
           cmake -S cmake -B out/build -G Ninja
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           -Dprotobuf_BUILD_TESTS=OFF
           -Dprotobuf_BUILD_CONFORMANCE=OFF
           -Dprotobuf_BUILD_EXAMPLES=OFF
@@ -90,6 +91,7 @@ jobs:
         run: >
           cmake -S cmake -B out/build -G Ninja
           -DCMAKE_OSX_ARCHITECTURES=arm64
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           -Dprotobuf_BUILD_TESTS=OFF
           -Dprotobuf_BUILD_CONFORMANCE=OFF
           -Dprotobuf_BUILD_EXAMPLES=OFF
